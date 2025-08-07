@@ -1,0 +1,1 @@
+<img {{ $attributes }} src="https://unsri.ac.id/images/lambang/0925253d-49e2-4a72-a0c7-ae70d33d24be.jpg" alt="Logo Aplikasi">

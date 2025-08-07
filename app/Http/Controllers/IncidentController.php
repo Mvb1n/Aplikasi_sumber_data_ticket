@@ -1,0 +1,192 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Asset;
+use App\Models\Incident;
+// Incident model tidak digunakan untuk menyimpan, jadi bisa dihapus jika tidak ada keperluan lain.
+// use App\Models\Incident; 
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Http\Client\RequestException; // Lebih spesifik untuk menangani error HTTP
+
+class IncidentController extends Controller
+{
+
+    private string $apiUrl;
+    private string $apiToken;
+    private int $cacheDuration; // Menambahkan durasi cache agar mudah diubah
+
+    /**
+     * Mengambil konfigurasi dari file .env daripada hard-coding.
+     * Ini adalah praktik terbaik untuk keamanan dan fleksibilitas.
+     */
+    public function __construct()
+    {
+        // Ambil konfigurasi dari file config/services.php yang terhubung ke .env
+        $this->apiUrl = config('services.ticketing.url');
+        $this->apiToken = config('services.ticketing.token');
+        $this->cacheDuration = 10; // Durasi cache dalam menit
+    }
+
+    /**
+     * Mengambil daftar 'sites' dari API dan menyimpannya di cache.
+     * Fungsi ini sekarang menjadi satu-satunya sumber untuk mengambil 'sites'.
+     */
+    private function fetchSites()
+    {
+        // Gunakan Cache::remember untuk efisiensi.
+        // Kunci cache dibuat unik berdasarkan URL API.
+        return Cache::remember('sites_list:' . $this->apiUrl, now()->addMinutes($this->cacheDuration), function () {
+            try {
+                $response = Http::withToken($this->apiToken)
+                    ->acceptJson()
+                    ->get($this->apiUrl . '/api/v1/sites');
+
+                // Lemparkan exception jika request gagal, akan ditangkap oleh blok catch.
+                $response->throw(); 
+
+                return $response->json();
+
+            } catch (\Exception $e) {
+                Log::critical('Gagal mengambil daftar site dari API: ' . $e->getMessage());
+                // Kembalikan array kosong jika gagal agar tidak error di view.
+                return []; 
+            }
+        });
+    }
+
+    // Menampilkan daftar semua laporan insiden di Aplikasi 2
+    public function index()
+    {
+        $incidents = Incident::latest()->paginate(15);
+        return view('incident.index', compact('incidents'));
+    }
+
+    /**
+     * Menampilkan form untuk membuat laporan insiden baru.
+     */
+    public function create()
+    {
+        $sites = $this->fetchSites();
+        return view('incident.create', compact('sites'));
+    }
+
+    /**
+     * Mengirim data insiden baru langsung ke API eksternal.
+     * CATATAN: Proses ini berjalan secara synchronous (menunggu respon API).
+     */
+    public function store(Request $request)
+    {
+        // 1. Validasi data dari form
+        $validatedData = $request->validate([
+            'title' => 'required|string|max:255',
+            'reporter_email' => 'required|email',
+            'site_location_code' => 'required|string',
+            'specific_location' => 'required|string',
+            'chronology' => 'required|string',
+            'involved_asset_sn' => 'nullable|array',
+            'involved_asset_sn.*' => 'string',
+        ]);
+
+        // Gabungkan array nomor seri menjadi string jika ada
+        if (!empty($validatedData['involved_asset_sn'])) {
+            $validatedData['involved_asset_sn'] = implode(',', $validatedData['involved_asset_sn']);
+        } else {
+            $validatedData['involved_asset_sn'] = null;
+        }
+
+        // 2. Simpan data ke database Aplikasi 2.
+        // Saat baris ini berhasil dieksekusi, Laravel akan secara otomatis
+        // menembakkan event 'IncidentReported' yang akan ditangkap oleh Listener.
+        Incident::create($validatedData);
+
+        // 3. Kembalikan pesan sukses kepada pengguna.
+        // Pengguna tidak perlu menunggu proses sinkronisasi API selesai.
+        return back()->with('success', 'Laporan insiden berhasil disimpan! Proses sinkronisasi berjalan di latar belakang.');
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(string $id)
+    {
+        //
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+
+    public function edit(Incident $incident)
+    {
+        // Ambil daftar site dari API Aplikasi 1
+        $sites = $this->fetchSites(); 
+        return view('incident.edit', compact('incident', 'sites'));
+    }
+
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, Incident $incident)
+    {
+        $validatedData = $request->validate([
+            'title' => 'required|string',
+            'reporter_email' => 'required|email',
+            'site_location_code' => 'required|string',
+            'specific_location' => 'required|string',
+            'chronology' => 'required|string',
+            'involved_asset_sn' => 'nullable|string',
+        ]);
+        $incident->update($validatedData);
+        return redirect()->route('incidents.index')->with('success', 'Laporan berhasil diperbarui! Sinkronisasi sedang berjalan.');
+    }
+
+    public function updateFromApi(Request $request, $serial_number)
+    {
+        $incident = Incident::where('serial_number', $serial_number)->first();
+
+        if ($incident) {
+            // Validasi data yang masuk dari Aplikasi 1
+            $validatedData = $request->validate([
+                'title' => 'required|string',
+                'reporter_email' => 'required|email',
+                'site_location_code' => 'required|string',
+                'specific_location' => 'required|string',
+                'chronology' => 'required|string',
+                'involved_asset_sn' => 'nullable|string',
+            ]);
+
+            $incident->update($validatedData);
+            return response()->json(['message' => 'Incident updated successfully in App 2.']);
+        }
+
+        return response()->json(['message' => 'Incident not found in App 2.'], 404);
+    }
+
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Incident $incident)
+    {
+        $incident->delete();
+        return redirect()->route('incidents.index')->with('success', 'Laporan berhasil dihapus! Sinkronisasi sedang berjalan.');
+    }
+
+    public function destroyFromApi($serial_number)
+    {
+        $incident = Incident::where('serial_number', $serial_number)->first();
+
+        if ($incident) {
+            $incident->delete();
+            return response()->json(['message' => 'Incident deleted successfully from App 2.']);
+        }
+
+        return response()->json(['message' => 'Incident not found in App 2.'], 404);
+    }
+    
+}
