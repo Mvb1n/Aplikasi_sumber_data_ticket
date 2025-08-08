@@ -10,9 +10,5 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::put('/v1/assets/{serial_number}', [AssetController::class, 'updateFromApi']);
-    Route::delete('/v1/assets/{serial_number}', [AssetController::class, 'destroyFromApi']);
-    Route::put('/v1/incidents/{serial_number}', [IncidentController::class, 'updateFromApi']);
-    Route::delete('/v1/incidents/{serial_number}', [IncidentController::class, 'destroyFromApi']);
     
 });

@@ -144,30 +144,7 @@ class IncidentController extends Controller
         $incident->update($validatedData);
         return redirect()->route('incidents.index')->with('success', 'Laporan berhasil diperbarui! Sinkronisasi sedang berjalan.');
     }
-
-    public function updateFromApi(Request $request, $serial_number)
-    {
-        $incident = Incident::where('serial_number', $serial_number)->first();
-
-        if ($incident) {
-            // Validasi data yang masuk dari Aplikasi 1
-            $validatedData = $request->validate([
-                'title' => 'required|string',
-                'reporter_email' => 'required|email',
-                'site_location_code' => 'required|string',
-                'specific_location' => 'required|string',
-                'chronology' => 'required|string',
-                'involved_asset_sn' => 'nullable|string',
-            ]);
-
-            $incident->update($validatedData);
-            return response()->json(['message' => 'Incident updated successfully in App 2.']);
-        }
-
-        return response()->json(['message' => 'Incident not found in App 2.'], 404);
-    }
-
-
+    
     /**
      * Remove the specified resource from storage.
      */
@@ -176,17 +153,4 @@ class IncidentController extends Controller
         $incident->delete();
         return redirect()->route('incidents.index')->with('success', 'Laporan berhasil dihapus! Sinkronisasi sedang berjalan.');
     }
-
-    public function destroyFromApi($serial_number)
-    {
-        $incident = Incident::where('serial_number', $serial_number)->first();
-
-        if ($incident) {
-            $incident->delete();
-            return response()->json(['message' => 'Incident deleted successfully from App 2.']);
-        }
-
-        return response()->json(['message' => 'Incident not found in App 2.'], 404);
-    }
-    
 }

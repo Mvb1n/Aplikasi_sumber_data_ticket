@@ -14,7 +14,5 @@ class Asset extends Model
     protected $fillable = ['name', 'serial_number', 'category', 'status', 'site_location_code'];
     protected $dispatchesEvents = [
     'created' => AssetCreated::class,
-    'updated' => AssetUpdated::class,
-    'deleted' => AssetDeleted::class,
 ];
 }

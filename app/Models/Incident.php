@@ -14,7 +14,6 @@ class Incident extends Model
 
     protected $dispatchesEvents = [
     'created' => IncidentReported::class,
-    'deleted' => IncidentCancelled::class, // Kita gunakan 'deleted' sebagai pemicu
 ];
 }
 

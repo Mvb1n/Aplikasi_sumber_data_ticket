@@ -89,41 +89,9 @@ class AssetController extends Controller
         return redirect()->route('assets.index')->with('success', 'Aset berhasil diperbarui! Sinkronisasi sedang berjalan.');
     }
 
-    public function updateFromApi(Request $request, $serial_number)
-    {
-        $asset = Asset::where('serial_number', $serial_number)->first();
-
-        if ($asset) {
-            // Validasi data yang masuk dari Aplikasi 1
-            $validatedData = $request->validate([
-                'name' => 'required|string|max:255',
-                'category' => 'required|string',
-                'status' => 'required|string',
-                'site_location_code' => 'required|string',
-            ]);
-
-            $asset->update($validatedData);
-            return response()->json(['message' => 'Asset updated successfully in App 2.']);
-        }
-
-        return response()->json(['message' => 'Asset not found in App 2.'], 404);
-    }
-
     public function destroy(Asset $asset)
     {
         $asset->delete();
         return redirect()->route('assets.index')->with('success', 'Aset berhasil dihapus! Sinkronisasi sedang berjalan.');
-    }
-
-    public function destroyFromApi($serial_number)
-    {
-        $asset = Asset::where('serial_number', $serial_number)->first();
-
-        if ($asset) {
-            $asset->delete();
-            return response()->json(['message' => 'Asset deleted successfully from App 2.']);
-        }
-
-        return response()->json(['message' => 'Asset not found in App 2.'], 404);
     }
 }
