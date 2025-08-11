@@ -12,7 +12,10 @@ class Asset extends Model
 {
     use HasFactory;
     protected $fillable = ['name', 'serial_number', 'category', 'status', 'site_location_code'];
+
     protected $dispatchesEvents = [
-    'created' => AssetCreated::class,
-];
+        'created' => AssetCreated::class, // atau IncidentCreated
+        'updated' => AssetUpdated::class, // atau IncidentUpdated
+        'deleted' => AssetDeleted::class, // atau IncidentDeleted
+    ];
 }

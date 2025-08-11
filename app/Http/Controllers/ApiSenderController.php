@@ -63,7 +63,7 @@ class ApiSenderController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Asset $asset)
+    public function updateAsset(Request $request, Asset $asset)
     {
         // Kirim permintaan UPDATE ke API Aplikasi 1
         $response = Http::withToken($this->apiToken)
@@ -78,7 +78,7 @@ class ApiSenderController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Asset $asset)
+    public function destroyAsset(Asset $asset)
     {
         // Kirim permintaan DELETE ke API Aplikasi 1
         $response = Http::withToken($this->apiToken)
