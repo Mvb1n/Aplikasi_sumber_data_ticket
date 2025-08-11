@@ -5,60 +5,62 @@
         </h2>
     </x-slot>
 
-    <!-- Konten Halaman -->
-    <div class="container mx-auto max-w-2xl py-12">
-        <div class="bg-white p-8 rounded-lg shadow-md">
-            <h1 class="text-2xl font-bold mb-6">Input Aset Baru</h1>
-            @if (session('success'))
-                <div class="mb-4 p-4 text-sm text-green-700 bg-green-100 rounded-lg" role="alert">
-                    {{ session('success') }}
-                </div>
-            @endif
-            @if (session('error'))
-                <div class="mb-4 p-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
-                    {{ session('error') }}
-                </div>
-            @endif
+    <div class="py-12">
+        <div class="max-w-2xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white p-8 rounded-lg shadow-md">
+                @if (session('success'))
+                    <div class="mb-4 p-4 text-sm text-green-700 bg-green-100 rounded-lg" role="alert">
+                        {{ session('success') }}
+                    </div>
+                @endif
+                @if (session('error'))
+                    <div class="mb-4 p-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
+                        {{ session('error') }}
+                    </div>
+                @endif
 
-            <form action="{{ route('assets.store') }}" method="POST">
-                @csrf
-                <div class="space-y-4">
-                    <div>
-                        <label for="name" class="block text-sm font-medium text-gray-700">Nama Aset</label>
-                        <input type="text" name="name" id="name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                <form action="{{ route('assets.store') }}" method="POST">
+                    @csrf
+                    <div class="space-y-4">
+                        <div>
+                            <x-input-label for="name" :value="__('Nama Aset')" />
+                            <x-text-input type="text" name="name" id="name" required class="mt-1 block w-full" :value="old('name', $asset->name ?? '')" />
+                        </div>
+                        <div>
+                            <x-input-label for="serial_number" :value="__('Nomor Seri')" />
+                            <x-text-input type="text" name="serial_number" id="serial_number" required class="mt-1 block w-full border-gray-300" :value="old('serial_number', $asset->serial_number ?? '')"/>
+                        </div>
+                        <div>
+                            <x-input-label for="category" :value="__('Kategori')" />
+                            <x-text-input type="text" name="category" id="category" required class="mt-1 block w-full" :value="old('category', $asset->category ?? '')" />
+                        </div>
+                        <div>
+                            <x-input-label for="site_location_code" :value="__('Pilih Site Penempatan')" />
+                            <select id="site_location_code" name="site_location_code" class="block mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
+                                <option value="">-- Pilih Site --</option>
+                                @foreach($sites as $site)
+                                    <option value="{{ $site['location_code'] }}" @selected(old('site_location_code', $asset->site_location_code ?? '') == $site['location_code'])>{{ $site['name'] }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <x-input-label for="status" :value="__('Status')" />
+                            <select id="status" name="status" class="block mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
+                                <option value="In Use" @selected(old('status', $asset->status ?? '') == 'In Use')>In Use</option>
+                                <option value="In Repair" @selected(old('status', $asset->status ?? '') == 'In Repair')>In Repair</option>
+                                <option value="Stolen/Lost" @selected(old('status', $asset->status ?? '') == 'Stolen/Lost')>Stolen/Lost</option>
+                                <option value="Decommissioned" @selected(old('status', $asset->status ?? '') == 'Decommissioned')>Decommissioned</option>
+                            </select>
+                        </div>
                     </div>
-                    <div>
-                        <label for="serial_number" class="block text-sm font-medium text-gray-700">Nomor Seri</label>
-                        <input type="text" name="serial_number" id="serial_number" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    <div class="mt-6 flex justify-end">
+                        <a href="{{ route('assets.index') }}" class="text-sm text-gray-600 hover:text-gray-900 self-center mr-4">Batal</a>
+                        <x-primary-button>
+                            {{ isset($asset) ? 'Simpan Perubahan' : 'Tambah Aset' }}
+                        </x-primary-button>
                     </div>
-                    <div>
-                        <label for="category" class="block text-sm font-medium text-gray-700">Kategori</label>
-                        <input type="text" name="category" id="category" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" value="">
-                    </div>
-                    {{-- Dropdown untuk memilih site, bukan lagi input teks manual --}}
-                    <div>
-                        <x-input-label for="site_location_code" :value="__('Pilih Site Penempatan')" />
-                        <select id="site_location_code" name="site_location_code" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" required>
-                            <option value="">-- Pilih Site --</option>
-                            @forelse($sites as $site)
-                                <option value="{{ $site['location_code'] }}" @selected(old('site_location_code') == $site['location_code'])>{{ $site['name'] }}</option>
-                            @empty
-                                <option value="" disabled>Gagal memuat daftar site. Periksa koneksi API.</option>
-                            @endforelse
-                        </select>
-                    </div>
-                     <div>
-                        <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
-                        <input type="text" name="status" id="status" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" value="In Use">
-                    </div>
-                </div>
-                <div class="mt-6">
-                    <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
-                        Simpan & Kirim ke Aplikasi Tiket
-                    </button>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
-    
 </x-app-layout>
