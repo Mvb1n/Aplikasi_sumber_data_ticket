@@ -1,5 +1,5 @@
 <x-app-layout>
-    
+
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             {{-- Tentukan judul berdasarkan apakah kita sedang mengedit atau membuat baru --}}
@@ -10,6 +10,7 @@
     <div class="py-12">
         <div class="max-w-2xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white p-8 rounded-lg shadow-md">
+                
                 @if (session('success'))
                     <div class="mb-4 p-4 text-sm text-green-700 bg-green-100 rounded-lg" role="alert">
                         {{ session('success') }}

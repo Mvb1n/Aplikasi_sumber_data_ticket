@@ -10,8 +10,26 @@
     <div class="py-12">
         <div class="max-w-2xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white p-8 rounded-lg shadow-md">
-                <form action="{{ route('incidents.store') }}" method="POST">
+
+                @if (session('success'))
+                    <div class="mb-4 p-4 text-sm text-green-700 bg-green-100 rounded-lg" role="alert">
+                        {{ session('success') }}
+                    </div>
+                @endif
+                @if (session('error'))
+                    <div class="mb-4 p-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
+                        {{ session('error') }}
+                    </div>
+                @endif
+
+                <form action="{{ isset($incident) ? route('incidents.update', $incident) : route('incidents.store') }}" method="POST">
                     @csrf
+                    
+                    {{-- PERBAIKAN: Tambahkan @method('PUT') hanya saat mengedit --}}
+                    @if(isset($incident))
+                        @method('PUT')
+                    @endif
+                    
                     <div class="space-y-4">
                         <div>
                             <x-input-label for="title" :value="__('Judul Insiden')" />
@@ -81,7 +99,7 @@
                 const siteId = selectedOption.dataset.siteId;
 
                 const apiUrl = `http://ticket.test:80/api/v1/sites/${siteId}/assets`;
-                const apiToken = '2|Z2PIDGYnVHlqip1FWw1WZWZJrTHG4EjXbf3wGZyA7ce09e7f';
+                const apiToken = '1|fbipjMTqgLrTeV9xZIs4HoaQju1D0tWtCMOXlzmR3bc34c27';
 
                 fetch(apiUrl, {
                     headers: { 'Authorization': `Bearer ${apiToken}`, 'Accept': 'application/json' }

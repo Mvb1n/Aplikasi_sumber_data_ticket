@@ -39,4 +39,24 @@ class ApiReceiverController extends Controller
         return response()->json(['message' => 'Asset delete in App 2']);
     }
 
+    public function updateIncident(Request $request, Incident $incident, $uuid)
+    {
+        $incident = Incident::where('uuid', $uuid)->firstOrFail();
+        // Lakukan update tanpa memicu event untuk mencegah infinite loop
+        Incident::withoutEvents(function () use ($incident, $request) {
+            $incident->update($request->all());
+        });
+        return response()->json(['message' => 'Incident updated in App 2']);
+    }
+
+    public function deleteIncident(Incident $incident, $uuid)
+    {
+        $incident = Incident::where('uuid', $uuid)->firstOrFail();
+        // Lakukan update tanpa memicu event untuk mencegah infinite loop
+        Incident::withoutEvents(function () use ($incident) {
+            $incident->delete();
+        });
+        return response()->json(['message' => 'Incident delete in App 2']);
+    }
+
 }

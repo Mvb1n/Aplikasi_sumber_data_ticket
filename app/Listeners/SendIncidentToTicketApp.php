@@ -51,6 +51,7 @@ class SendIncidentToTicketApp implements ShouldQueue
         $incident = $event->incident;
 
         $dataToSync = [
+            'uuid' => $incident->uuid, // KIRIM UUID
             'title' => $incident->title,
             'reporter_email' => $incident->reporter_email,
             'site_location_code' => $incident->site_location_code,
@@ -79,7 +80,7 @@ class SendIncidentToTicketApp implements ShouldQueue
             // Mencatat log ke database (tetap ada)
             SyncLog::create([
                 'model_type' => 'Incident',
-                'model_id' => $incident->id,
+                'model_id' => $incident->uuid,
                 'status' => $response->successful() ? 'success' : 'failed',
                 'response_code' => $response->status(),
                 'response_body' => $response->successful() ? 'OK' : json_encode($response->json()),
@@ -88,7 +89,7 @@ class SendIncidentToTicketApp implements ShouldQueue
         } catch (\Exception $e) {
             SyncLog::create([
                 'model_type' => 'Incident',
-                'model_id' => $incident->id,
+                'model_id' => $incident->uuid,
                 'status' => 'failed',
                 'response_code' => 500,
                 'response_body' => $e->getMessage(),
