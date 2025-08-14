@@ -18,7 +18,8 @@ class Incident extends Model
     protected $dispatchesEvents = [
         'created' => IncidentReported::class, // atau IncidentCreated
         'updated' => IncidentUpdated::class, // atau IncidentUpdated
-        'deleted' => IncidentDeleted::class, // atau IncidentDeleted
+        // 'deleted' => IncidentDeleted::class, // atau IncidentDeleted
+        'deleted' => IncidentCancelled::class, // atau IncidentDeleted
     ];
 
     protected static function boot()
@@ -28,6 +29,16 @@ class Incident extends Model
         static::creating(function ($incident) {
             $incident->uuid = (string) Str::uuid();
         });
+    }
+
+    // Tambahkan method ini untuk mengirim UUID saat event 'deleted' terjadi
+    public function fireModelEvent($event, $halt = true)
+    {
+        if ($event === 'deleted') {
+            static::deleted(fn () => event(new IncidentCancelled($this->uuid)));
+            return;
+        }
+        parent::fireModelEvent($event, $halt);
     }
     
 }

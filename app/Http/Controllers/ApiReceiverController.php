@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Asset;
 use App\Models\Incident;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 
 class ApiReceiverController extends Controller
@@ -31,12 +32,19 @@ class ApiReceiverController extends Controller
 
     public function deleteAsset(Request $request, $serial_number)
     {
-        $asset = Asset::where('serial_number', $serial_number)->firstOrFail();
-        // Lakukan update tanpa memicu event untuk mencegah infinite loop
-        Asset::withoutEvents(function () use ($asset) {
-            $asset->delete();
-        });
-        return response()->json(['message' => 'Asset delete in App 2']);
+        $asset = Asset::where('serial_number', $serial_number)->first();
+
+        if ($asset) {
+            // Hapus data tanpa memicu event lagi untuk mencegah infinite loop
+            Asset::withoutEvents(function () use ($asset) {
+                $asset->delete();
+            });
+            Log::info('Aset #' . $serial_number . ' berhasil dihapus via webhook dari Aplikasi 1.');
+        } else {
+            Log::warning('Menerima permintaan hapus untuk aset #' . $serial_number . ', tetapi tidak ditemukan di database lokal.');
+        }
+
+        return response()->json(['message' => 'OK']);
     }
 
     public function updateIncident(Request $request, Incident $incident, $uuid)

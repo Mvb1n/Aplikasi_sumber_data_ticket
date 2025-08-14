@@ -32,10 +32,16 @@
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $incident->created_at->format('d M Y') }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                                         <a href="{{ route('incidents.edit', $incident->id) }}" class="text-indigo-600 hover:text-indigo-900">Edit</a>
-                                        <form action="{{ route('incidents.destroy', $incident->id) }}" method="POST" class="inline" onsubmit="return confirm('Yakin ingin membatalkan laporan ini? Status aset terkait akan dikembalikan.');">
+                                        {{-- <form action="{{ route('incidents.destroy', $incident->id) }}" method="POST" class="inline" onsubmit="return confirm('Yakin ingin membatalkan laporan ini? Status aset terkait akan dikembalikan.');">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="text-red-600 hover:text-red-900">Batalkan</button>
+                                            <button type="submit" class="text-red-600 hover:text-red-900">Hapus</button>
+                                        </form> --}}
+
+                                        <form action="{{ route('incidents.cancel', $incident->id) }}" method="POST">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-red-600">Batalkan</button>
                                         </form>
                                     </td>
                                 </tr>

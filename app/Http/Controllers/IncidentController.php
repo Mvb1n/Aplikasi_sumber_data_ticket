@@ -28,7 +28,7 @@ class IncidentController extends Controller
         // Ambil konfigurasi dari file config/services.php yang terhubung ke .env
         $this->apiUrl = config('services.ticketing.url');
         $this->apiToken = config('services.ticketing.token');
-        $this->cacheDuration = 10; // Durasi cache dalam menit
+        $this->cacheDuration = 600; // Durasi cache dalam menit
     }
 
     /**
@@ -150,7 +150,9 @@ class IncidentController extends Controller
      */
     public function destroy(Incident $incident)
     {
+        // Saat baris ini dieksekusi, Event "IncidentCancelled" akan otomatis terpicu
         $incident->delete();
-        return redirect()->route('incidents.index')->with('success', 'Laporan berhasil dihapus! Sinkronisasi sedang berjalan.');
+        return back()->with('success', 'Laporan berhasil dibatalkan! Proses sinkronisasi berjalan di latar belakang.');
     }
+
 }
