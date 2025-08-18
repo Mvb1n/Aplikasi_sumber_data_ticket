@@ -6,6 +6,7 @@ use App\Http\Controllers\AssetController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SyncLogController;
 use App\Http\Controllers\IncidentController;
+use App\Http\Controllers\ApiSenderController;
 
 Route::get('/buat-token', function () {
     $user = User::where('email', 'admin@gmail.com')->first();
@@ -27,8 +28,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('assets', AssetController::class);
     Route::resource('incidents', IncidentController::class);
 
-    Route::get('/my-incidents', [IncidentController::class, 'index'])->name('incidents.index');
-    Route::delete('/incidents/{incident}', [IncidentController::class, 'destroy'])->name('incidents.cancel');
+    // Route::get('/my-incidents', [IncidentController::class, 'index'])->name('incidents.index');
+    // Route::delete('/incidents/{incident}', [IncidentController::class, 'cancelIncident'])->name('incidents.cancel');
 
     Route::get('/sync-logs', [SyncLogController::class, 'index'])->name('sync-logs.index');
 

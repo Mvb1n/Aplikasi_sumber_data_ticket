@@ -150,9 +150,37 @@ class IncidentController extends Controller
      */
     public function destroy(Incident $incident)
     {
-        // Saat baris ini dieksekusi, Event "IncidentCancelled" akan otomatis terpicu
-        $incident->delete();
-        return back()->with('success', 'Laporan berhasil dibatalkan! Proses sinkronisasi berjalan di latar belakang.');
+        // Kirim permintaan cancel ke API Aplikasi 1 sebelum menghapus data lokal
+        $response = Http::withToken($this->apiToken)
+            ->timeout(60)
+            ->post("{$this->apiUrl}/api/v1/incidents/{$incident->uuid}/cancel");
+
+        if ($response->successful()) {
+            // Hapus data incident di database lokal
+            $incident->delete();
+            return back()->with('success', 'Laporan berhasil dibatalkan! Proses sinkronisasi berjalan di latar belakang.');
+        } else {
+            // Tangani error jika permintaan gagal
+            $errorMessage = $response->json('message') ?? 'Terjadi kesalahan saat membatalkan laporan insiden.';
+            return back()->with('error', $errorMessage);
+        }
     }
+
+    // public function cancelIncident(Incident $incident)
+    // {
+    //     // Kirim permintaan DELETE ke API Aplikasi 1
+    //     $response = Http::withToken($this->apiToken)
+    //         ->post("{$this->apiUrl}/api/v1/incidents/{$incident->uuid}/cancel");
+
+    //     if ($response->successful()) {
+    //         // Hapus data incident di database lokal
+    //         $incident->delete();
+    //         return back()->with('success', 'Permintaan delete asset berhasil dikirim dan data dihapus dari database.');
+    //     } else {
+    //         // Tangani error jika permintaan gagal
+    //         $errorMessage = $response->json('message') ?? 'Terjadi kesalahan saat mengirim permintaan delete asset.';
+    //         return back()->with('error', $errorMessage);
+    //     }
+    // }
 
 }
