@@ -61,7 +61,35 @@ class IncidentController extends Controller
     // Menampilkan daftar semua laporan insiden di Aplikasi 2
     public function index()
     {
+        // 1. Ambil daftar insiden dari database LOKAL Aplikasi 2
         $incidents = Incident::latest()->paginate(15);
+
+        // 2. Ambil semua UUID dari daftar tersebut
+        $uuids = $incidents->pluck('uuid')->toArray();
+
+        // 3. "Tanya" ke Aplikasi 1 untuk status & site terbaru
+        $apiUrl = config('services.ticketing.url') . '/api/v1/incidents/statuses';
+        $apiToken = config('services.ticketing.token');
+
+        try {
+            $response = Http::withToken($apiToken)->acceptJson()->post($apiUrl, ['uuids' => $uuids]);
+
+            if ($response->successful()) {
+                $latestData = $response->json();
+
+                // 4. Perbarui setiap insiden lokal dengan data terbaru dari API
+                $incidents->each(function ($incident) use ($latestData) {
+                    if (isset($latestData[$incident->uuid])) {
+                        $incident->status = $latestData[$incident->uuid]['status'];
+                        $incident->site_name = $latestData[$incident->uuid]['site_name']; // Tambahkan nama site
+                    }
+                });
+            }
+        } catch (\Exception $e) {
+            // Jika API gagal, biarkan saja, data lama akan ditampilkan
+        }
+
+        // 5. Kirim data yang sudah diperbarui ke view
         return view('incident.index', compact('incidents'));
     }
 
@@ -111,9 +139,22 @@ class IncidentController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(Incident $incident)
     {
-        //
+        // Ambil data detail dari API Aplikasi 1 menggunakan UUID dari model
+        $apiUrl = $this->apiUrl . '/api/v1/incidents/' . $incident->uuid;
+        $incidentData = [];
+
+        try {
+            $response = Http::withToken($this->apiToken)->acceptJson()->get($apiUrl);
+            if ($response->successful()) {
+                $incidentData = $response->json();
+            }
+        } catch (\Exception $e) {
+            Log::error('Gagal mengambil detail insiden: ' . $e->getMessage());
+        }
+
+        return view('incident.show', compact('incidentData', 'incident'));
     }
 
     /**
@@ -150,14 +191,15 @@ class IncidentController extends Controller
      */
     public function destroy(Incident $incident)
     {
-        // Kirim permintaan cancel ke API Aplikasi 1 sebelum menghapus data lokal
+        // Kirim permintaan cancel ke API Aplikasi 1 tanpa menghapus data lokal
         $response = Http::withToken($this->apiToken)
-            ->timeout(60)
+            ->timeout(120)
             ->post("{$this->apiUrl}/api/v1/incidents/{$incident->uuid}/cancel");
 
+        $incident->status = "Cancelled"; // Update status lokal sebelum menghapus
+        $incident->save(); // Simpan perubahan status di database lokal
+
         if ($response->successful()) {
-            // Hapus data incident di database lokal
-            $incident->delete();
             return back()->with('success', 'Laporan berhasil dibatalkan! Proses sinkronisasi berjalan di latar belakang.');
         } else {
             // Tangani error jika permintaan gagal
