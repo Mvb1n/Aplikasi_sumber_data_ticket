@@ -12,9 +12,13 @@ Route::get('/user', function (Request $request) {
 
 Route::middleware('auth:sanctum')->group(function () {
 
+    Route::post('/v1/assets', [ApiReceiverController::class, 'storeAsset']);
     Route::put('/v1/assets/{serial_number}', [ApiReceiverController::class, 'updateAsset']);
     Route::delete('/v1/assets/{serial_number}', [ApiReceiverController::class, 'deleteAsset']);
+    Route::post('/v1/incidents', [ApiReceiverController::class, 'storeIncident']);
     Route::put('/v1/incidents/{uuid}', [ApiReceiverController::class, 'updateIncident']);
     Route::delete('/v1/incidents/{uuid}', [ApiReceiverController::class, 'deleteIncident']);
+    Route::put('/v1/incidents/{incident:uuid}/cancel', [ApiReceiverController::class, 'cancelIncident']);
+
     
 });

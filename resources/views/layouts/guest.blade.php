@@ -25,7 +25,7 @@
                     Selamat Datang
                 </h2>
                 <h3 class="flex justify-center text-gray-900 dark:text-gray-100">
-                    Di Aplikasi Sumber Data
+                    Di Prototipe Daisy
                 </h3>
 
                 {{ $slot }}

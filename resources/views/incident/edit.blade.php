@@ -99,7 +99,7 @@
                 const siteId = selectedOption.dataset.siteId;
 
                 const apiUrl = `http://ticket.test:80/api/v1/sites/${siteId}/assets`;
-                const apiToken = '1|XRiHmQytreoNIW6ZvoGFR0o5g034O1E9BgR6nIr411caea5b';
+                const apiToken = '1|IQr8L4j8OcmlKhtjGu5bQePz6sOGV8dnuR2Vm0og84164778';
 
                 fetch(apiUrl, {
                     headers: { 'Authorization': `Bearer ${apiToken}`, 'Accept': 'application/json' }

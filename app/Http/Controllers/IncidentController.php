@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Asset;
+
 use App\Models\Incident;
 // Incident model tidak digunakan untuk menyimpan, jadi bisa dihapus jika tidak ada keperluan lain.
 // use App\Models\Incident; 
@@ -106,9 +106,9 @@ class IncidentController extends Controller
      * Mengirim data insiden baru langsung ke API eksternal.
      * CATATAN: Proses ini berjalan secara synchronous (menunggu respon API).
      */
-    public function store(Request $request)
+   public function store(Request $request)
     {
-        // 1. Validasi data dari form
+        // 1. Validasi data (TERMASUK VALIDASI FILE)
         $validatedData = $request->validate([
             'title' => 'required|string|max:255',
             'reporter_email' => 'required|email',
@@ -117,6 +117,11 @@ class IncidentController extends Controller
             'chronology' => 'required|string',
             'involved_asset_sn' => 'nullable|array',
             'involved_asset_sn.*' => 'string',
+            
+            // --- TAMBAHAN UNTUK FILE ---
+            'attachments' => 'nullable|array', // Pastikan 'attachments' adalah array
+            'attachments.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120', // Validasi setiap file (maks 5MB)
+            // -------------------------------
         ]);
 
         // Gabungkan array nomor seri menjadi string jika ada
@@ -126,14 +131,31 @@ class IncidentController extends Controller
             $validatedData['involved_asset_sn'] = null;
         }
 
-        // 2. Simpan data ke database Aplikasi 2.
-        // Saat baris ini berhasil dieksekusi, Laravel akan secara otomatis
-        // menembakkan event 'IncidentReported' yang akan ditangkap oleh Listener.
+        // --- TAMBAHAN: LOGIKA UNTUK PROSES FILE ---
+        $attachmentPaths = []; // Siapkan array kosong untuk menampung path file
+
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                // Simpan file ke 'storage/app/public/attachments'
+                // dan simpan path-nya ke variabel $path
+                $path = $file->store('attachments', 'local');
+                
+                // Kumpulkan semua path ke dalam array $attachmentPaths
+                $attachmentPaths[] = $path;
+            }
+        }
+
+        // Tambahkan array path file ke $validatedData untuk disimpan ke database
+        // Kita gunakan json_encode agar array-nya bisa disimpan dalam satu kolom teks
+        $validatedData['attachment_paths'] = !empty($attachmentPaths) ? json_encode($attachmentPaths) : null;
+        // ----------------------------------------
+
+        // 2. Simpan data ke database.
+        // $validatedData sekarang sudah berisi 'attachment_paths'
         Incident::create($validatedData);
 
-        // 3. Kembalikan pesan sukses kepada pengguna.
-        // Pengguna tidak perlu menunggu proses sinkronisasi API selesai.
-        return back()->with('success', 'Laporan insiden berhasil disimpan! Proses sinkronisasi berjalan di latar belakang.');
+        // 3. Kembalikan pesan sukses.
+        return back()->with('success', 'Laporan berhasil dibuat dan sedang disinkronisasi');
     }
 
     /**
@@ -193,11 +215,8 @@ class IncidentController extends Controller
     {
         // Kirim permintaan cancel ke API Aplikasi 1 tanpa menghapus data lokal
         $response = Http::withToken($this->apiToken)
-            ->timeout(120)
+            ->timeout(240)
             ->post("{$this->apiUrl}/api/v1/incidents/{$incident->uuid}/cancel");
-
-        $incident->status = "Cancelled"; // Update status lokal sebelum menghapus
-        $incident->save(); // Simpan perubahan status di database lokal
 
         if ($response->successful()) {
             return back()->with('success', 'Laporan berhasil dibatalkan! Proses sinkronisasi berjalan di latar belakang.');
