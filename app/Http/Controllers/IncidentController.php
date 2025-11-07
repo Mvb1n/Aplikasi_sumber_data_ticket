@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Client\RequestException; // Lebih spesifik untuk menangani error HTTP
 
 class IncidentController extends Controller
@@ -106,7 +107,7 @@ class IncidentController extends Controller
      * Mengirim data insiden baru langsung ke API eksternal.
      * CATATAN: Proses ini berjalan secara synchronous (menunggu respon API).
      */
-   public function store(Request $request)
+    public function store(Request $request)
     {
         // 1. Validasi data (TERMASUK VALIDASI FILE)
         $validatedData = $request->validate([
@@ -138,7 +139,7 @@ class IncidentController extends Controller
             foreach ($request->file('attachments') as $file) {
                 // Simpan file ke 'storage/app/public/attachments'
                 // dan simpan path-nya ke variabel $path
-                $path = $file->store('attachments', 'local');
+                $path = $file->store('attachments', 'public');
                 
                 // Kumpulkan semua path ke dalam array $attachmentPaths
                 $attachmentPaths[] = $path;

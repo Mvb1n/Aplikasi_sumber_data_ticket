@@ -52,22 +52,21 @@ class SendIncidentToTicketApp implements ShouldQueue
      */
 
     
-   public function handle(IncidentReported $event): void
+    public function handle(IncidentReported $event): void
     {
-        // 1. Tetap pertahankan sleep untuk mengatasi race condition
-        sleep(2);
-        
         $incident = $event->incident;
 
-        // 2. Siapkan data aset & teks (Logika Anda sudah benar)
+        // 1. Dapatkan daftar nomor seri aset (Logika Anda sudah benar)
         $serialNumbers = [];
         if (!empty($incident->involved_asset_sn)) {
             $assets = is_array($incident->involved_asset_sn)
                 ? $incident->involved_asset_sn
                 : array_map('trim', explode(',', $incident->involved_asset_sn));
+            
             $serialNumbers = array_filter($assets);
         }
-        
+
+        // 2. Siapkan data TEKS untuk dikirim.
         $dataToSync = [
             'uuid'                => $incident->uuid,
             'title'               => $incident->title,
@@ -78,44 +77,52 @@ class SendIncidentToTicketApp implements ShouldQueue
             'involved_asset_sn'   => $serialNumbers,
         ];
 
-        $fullApiUrl = rtrim($this->apiUrl, '/') . '/api/v1/incidents';
+        $apiUrl = config('services.ticketing.url') . '/api/v1/incidents';
+        $apiToken = config('services.ticketing.token');
 
         try {
-            $request = Http::withToken($this->apiToken)->acceptJson();
+            // 3. Siapkan request HTTP
+            $request = Http::withToken($apiToken)->acceptJson();
+
+            // --- REVISI LOGIKA FILE ---
             $filePaths = json_decode($incident->attachment_paths, true);
 
-            // 3. Ini adalah logika file yang benar
             if (is_array($filePaths) && !empty($filePaths)) {
                 foreach ($filePaths as $path) {
                     
-                    // Pastikan kita baca dari disk 'local'
-                    if (Storage::disk('local')->exists($path)) {
+                    // Cek 1: Pastikan file ada di disk 'public'
+                    if (Storage::disk('public')->exists($path)) {
                         
-                        // Gunakan 'readStream'
-                        $fileResource = Storage::disk('local')->readStream($path);
+                        // Cek 2: Ambil isi file-nya
+                        $fileContents = Storage::disk('public')->get($path);
 
-                        if ($fileResource) {
-                            // Ini adalah cara attach yang paling sederhana dan benar
-                            // Key-nya HANYA 'attachments' (tanpa [])
+                        // Cek 3: (INI KUNCINYA) Pastikan isi file tidak kosong
+                        if (!empty($fileContents)) {
+                            // Jika ada isinya, baru lampirkan (attach)
                             $request->attach(
-                                'attachments',
-                                $fileResource,
+                                'attachments[]', 
+                                $fileContents, // Gunakan isi file yang sudah diambil
                                 basename($path)
                             );
+                        } else {
+                            // Opsional: Catat di log bahwa kita melewati file kosong
+                            Log::warning("Skipped attaching empty file for Incident {$incident->id}: {$path}");
                         }
                     }
                 }
             }
+            // --- AKHIR REVISI ---
 
-            // 4. Kirim request
-            $response = $request->post($fullApiUrl, $dataToSync);
+            // 4. Kirim data (sebagai multipart)
+            $response = $request->post($apiUrl, $dataToSync);
 
-            // 5. Proses sisa logika (Logika Anda sudah benar)
+            // 5. Jika pengiriman API berhasil, ubah status aset (Logika Anda sudah benar)
             if ($response->successful() && !empty($serialNumbers)) {
                 Asset::whereIn('serial_number', $serialNumbers)
                     ->update(['status' => 'Stolen/Lost']);
             }
 
+            // 6. Catat hasil sinkronisasi (Logika Anda sudah benar)
             SyncLog::create([
                 'model_type'    => 'Incident',
                 'model_id'      => $incident->id,
@@ -125,14 +132,14 @@ class SendIncidentToTicketApp implements ShouldQueue
             ]);
 
         } catch (Exception $e) {
+            // 7. Catat jika terjadi error (Logika Anda sudah benar)
             SyncLog::create([
                 'model_type'    => 'Incident',
                 'model_id'      => $incident->id,
                 'status'        => 'failed',
-                'response_code' => $e instanceof RequestException ? $e->response->status() : 500,
+                'response_code' => 500,
                 'response_body' => $e->getMessage(),
             ]);
-            throw $e; 
         }
     }
 }
