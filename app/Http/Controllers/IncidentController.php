@@ -137,11 +137,8 @@ class IncidentController extends Controller
 
         if ($request->hasFile('attachments')) {
             foreach ($request->file('attachments') as $file) {
-                // Simpan file ke 'storage/app/public/attachments'
-                // dan simpan path-nya ke variabel $path
-                $path = $file->store('attachments', 'public');
-                
-                // Kumpulkan semua path ke dalam array $attachmentPaths
+                // MENJADI INI (atau $file->store('attachments') saja, karena local adalah default):
+                $path = $file->store('attachments', 'local'); 
                 $attachmentPaths[] = $path;
             }
         }

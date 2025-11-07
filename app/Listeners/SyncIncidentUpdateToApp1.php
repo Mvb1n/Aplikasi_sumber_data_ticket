@@ -7,9 +7,9 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
-class SyncIncidentUpdateToApp1
+class SyncIncidentUpdateToApp1 implements ShouldQueue
 {
-
+    use InteractsWithQueue;
     private string $apiUrl;
     private string $apiToken;
     /**

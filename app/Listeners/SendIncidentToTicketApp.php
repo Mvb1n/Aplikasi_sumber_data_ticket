@@ -82,36 +82,38 @@ class SendIncidentToTicketApp implements ShouldQueue
 
         try {
             // 3. Siapkan request HTTP
-            $request = Http::withToken($apiToken)->acceptJson();
+            $request = Http::timeout(1200)->withToken($apiToken)->acceptJson(); // 120 detik
 
             // --- REVISI LOGIKA FILE ---
             $filePaths = json_decode($incident->attachment_paths, true);
 
             if (is_array($filePaths) && !empty($filePaths)) {
-                foreach ($filePaths as $path) {
+            foreach ($filePaths as $path) {
+                
+                // 1. Cek di disk 'local'
+                if (Storage::disk('local')->exists($path)) {
                     
-                    // Cek 1: Pastikan file ada di disk 'public'
-                    if (Storage::disk('public')->exists($path)) {
-                        
-                        // Cek 2: Ambil isi file-nya
-                        $fileContents = Storage::disk('public')->get($path);
+                    // 2. Ambil path absolut dari disk 'local'
+                    $absolutePath = Storage::disk('local')->path($path);
+                    
+                    // 3. Buka file sebagai 'resource' (stream)
+                    $fileResource = @fopen($absolutePath, 'r');
 
-                        // Cek 3: (INI KUNCINYA) Pastikan isi file tidak kosong
-                        if (!empty($fileContents)) {
-                            // Jika ada isinya, baru lampirkan (attach)
-                            $request->attach(
-                                'attachments[]', 
-                                $fileContents, // Gunakan isi file yang sudah diambil
-                                basename($path)
-                            );
-                        } else {
-                            // Opsional: Catat di log bahwa kita melewati file kosong
-                            Log::warning("Skipped attaching empty file for Incident {$incident->id}: {$path}");
-                        }
+                    if ($fileResource) {
+                        $request->attach(
+                            'attachments[]',
+                            $fileResource, // Kirim sebagai resource
+                            basename($path)
+                        );
+                    } else {
+                        Log::warning("Gagal buka file resource (local): {$path} untuk Incident {$incident->id}");
                     }
+                } else {
+                    Log::warning("File tidak ditemukan (local): {$path} untuk Incident {$incident->id}");
                 }
             }
-            // --- AKHIR REVISI ---
+        }
+        // --- AKHIR PERUBAHAN ---
 
             // 4. Kirim data (sebagai multipart)
             $response = $request->post($apiUrl, $dataToSync);
