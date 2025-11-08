@@ -30,6 +30,8 @@ class SendIncidentToTicketApp implements ShouldQueue
      */
     public int $timeout = 120;
 
+    // public int $delay = 5; // <-- TAMBAHKAN BARIS INI (5 detik)
+
     private string $apiUrl;
     private string $apiToken;
 
@@ -57,13 +59,20 @@ class SendIncidentToTicketApp implements ShouldQueue
         $incident = $event->incident;
 
         // 1. Dapatkan daftar nomor seri aset (Logika Anda sudah benar)
-        $serialNumbers = [];
+        $serialNumbers = null; // Default-nya null
+        
         if (!empty($incident->involved_asset_sn)) {
             $assets = is_array($incident->involved_asset_sn)
                 ? $incident->involved_asset_sn
                 : array_map('trim', explode(',', $incident->involved_asset_sn));
             
-            $serialNumbers = array_filter($assets);
+            // Kita filter dan rapikan kuncinya
+            $filteredAssets = array_values(array_filter($assets));
+            
+            // HANYA set $serialNumbers jika array hasil filter TIDAK KOSONG
+            if (!empty($filteredAssets)) {
+                $serialNumbers = $filteredAssets;
+            }
         }
 
         // 2. Siapkan data TEKS untuk dikirim.
@@ -75,56 +84,99 @@ class SendIncidentToTicketApp implements ShouldQueue
             'specific_location'   => $incident->specific_location,
             'chronology'          => $incident->chronology,
             'involved_asset_sn'   => $serialNumbers,
+            'status'              => $incident->status,
         ];
 
         $apiUrl = config('services.ticketing.url') . '/api/v1/incidents';
         $apiToken = config('services.ticketing.token');
 
+        // PASTE KODE BARU INI SEBAGAI GANTINYA
         try {
-            // 3. Siapkan request HTTP
-            $request = Http::timeout(1200)->withToken($apiToken)->acceptJson(); // 120 detik
+            // 1. Dapatkan data serial number dari string (yang disimpan controller)
+            $serialNumbers = [];
+            if (!empty($incident->involved_asset_sn)) {
+                $serialNumbers = array_values(array_filter(explode(',', $incident->involved_asset_sn)));
+            }
 
-            // --- REVISI LOGIKA FILE ---
-            $filePaths = json_decode($incident->attachment_paths, true);
+            // 2. Siapkan data TEKS (SAMA SEPERTI SEBELUMNYA)
+            $dataToSync = [
+                'uuid'                => $incident->uuid,
+                'title'               => $incident->title,
+                'reporter_email'      => $incident->reporter_email,
+                'site_location_code'  => $incident->site_location_code,
+                'specific_location'   => $incident->specific_location,
+                'chronology'          => $incident->chronology,
+                'involved_asset_sn'   => !empty($serialNumbers) ? $serialNumbers : null, // Kirim array (atau null)
+                'status'              => $incident->status,
+            ];
 
-            if (is_array($filePaths) && !empty($filePaths)) {
-            foreach ($filePaths as $path) {
-                
-                // 1. Cek di disk 'local'
-                if (Storage::disk('local')->exists($path)) {
-                    
-                    // 2. Ambil path absolut dari disk 'local'
-                    $absolutePath = Storage::disk('local')->path($path);
-                    
-                    // 3. Buka file sebagai 'resource' (stream)
-                    $fileResource = @fopen($absolutePath, 'r');
+            $apiUrl = config('services.ticketing.url') . '/api/v1/incidents';
+            $apiToken = config('services.ticketing.token');
 
-                    if ($fileResource) {
-                        $request->attach(
-                            'attachments[]',
-                            $fileResource, // Kirim sebagai resource
-                            basename($path)
-                        );
-                    } else {
-                        Log::warning("Gagal buka file resource (local): {$path} untuk Incident {$incident->id}");
+            // --- PERUBAHAN BESAR DI SINI ---
+            
+            // 3. Siapkan array MULTIPART manual
+            $multipartData = [];
+
+            // 4. Loop semua data TEKS dan "ratakan" (flatten)
+            foreach ($dataToSync as $key => $value) {
+                if (is_array($value)) {
+                    // "Ratakan" involved_asset_sn[]
+                    foreach ($value as $index => $item) {
+                        $multipartData[] = ['name' => "{$key}[{$index}]", 'contents' => $item];
                     }
+                } elseif (is_null($value)) {
+                    $multipartData[] = ['name' => $key, 'contents' => ''];
                 } else {
-                    Log::warning("File tidak ditemukan (local): {$path} untuk Incident {$incident->id}");
+                    $multipartData[] = ['name' => $key, 'contents' => $value];
                 }
             }
-        }
-        // --- AKHIR PERUBAHAN ---
 
-            // 4. Kirim data (sebagai multipart)
-            $response = $request->post($apiUrl, $dataToSync);
-
-            // 5. Jika pengiriman API berhasil, ubah status aset (Logika Anda sudah benar)
-            if ($response->successful() && !empty($serialNumbers)) {
-                Asset::whereIn('serial_number', $serialNumbers)
-                    ->update(['status' => 'Stolen/Lost']);
+            // 5. Tambahkan semua FILE secara manual (STRUKTUR BARU)
+            $attachmentStructure = json_decode($incident->attachment_paths, true) ?? [];
+            
+            // 5a. Proses "Incident Files"
+            $incidentFiles = $attachmentStructure['incident_files'] ?? [];
+            foreach ($incidentFiles as $path) {
+                if (Storage::disk('public')->exists($path)) {
+                    $multipartData[] = [
+                        'name'     => 'incident_files[]', // Nama input file
+                        'contents' => Storage::disk('public')->get($path),
+                        'filename' => basename($path)
+                    ];
+                }
             }
 
-            // 6. Catat hasil sinkronisasi (Logika Anda sudah benar)
+            // 5b. Proses "Asset Files"
+            $assetFiles = $attachmentStructure['asset_files'] ?? [];
+            foreach ($assetFiles as $serialNumber => $files) {
+                foreach ($files as $path) {
+                    if (Storage::disk('public')->exists($path)) {
+                        $multipartData[] = [
+                            'name'     => "asset_files[{$serialNumber}][]", // Nama input file terstruktur
+                            'contents' => Storage::disk('public')->get($path),
+                            'filename' => basename($path)
+                        ];
+                    }
+                }
+            }
+
+            // 6. Kirim request sebagai MULTIPART
+            $response = Http::timeout(1200)
+                            ->withToken($apiToken)
+                            ->acceptJson()
+                            ->asMultipart() // <-- Kunci
+                            ->post($apiUrl, $multipartData); // <-- Kirim array multipart
+            
+            // --- AKHIR PERUBAHAN ---
+
+            // 7. Jika pengiriman API berhasil, ubah status aset
+            if ($response->successful() && !empty($serialNumbers)) {
+                Asset::whereIn('serial_number', $serialNumbers)
+                        ->update(['status' => 'Stolen/Lost']);
+            }
+
+            // 8. Catat hasil sinkronisasi
             SyncLog::create([
                 'model_type'    => 'Incident',
                 'model_id'      => $incident->id,
@@ -134,7 +186,7 @@ class SendIncidentToTicketApp implements ShouldQueue
             ]);
 
         } catch (Exception $e) {
-            // 7. Catat jika terjadi error (Logika Anda sudah benar)
+            // 9. Catat jika terjadi error
             SyncLog::create([
                 'model_type'    => 'Incident',
                 'model_id'      => $incident->id,

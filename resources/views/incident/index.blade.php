@@ -38,7 +38,7 @@
                                             @if($incident->status == 'In Progress') bg-yellow-100 text-yellow-800 @endif
                                             @if($incident->status == 'Resolved') bg-blue-100 text-blue-800 @endif
                                             @if($incident->status == 'Closed') bg-green-100 text-green-800 @endif
-                                            @if($incident->status == 'Cancelled') bg-gray-100 text-gray-800-800 @endif
+                                            @if($incident->status == 'Cancelled') bg-gray-100 text-gray-800 @endif
                                         ">
                                             {{ $incident->status }}
                                         </span>
@@ -60,10 +60,17 @@
                                         @if($incident->status == 'Open')
                                             {{-- <a href="{{ route('incidents.edit', $incident->id) }}" class="text-indigo-600 hover:text-indigo-900">Edit</a> --}}
                                             <a href="{{ route('incidents.show', $incident->id) }}" class="text-blue-600 hover:text-blue-900">Detail</a>
+                                            
                                             {{-- Form untuk menghapus laporan --}}
-                                            <form action="{{ route('incidents.destroy', $incident->id) }}" method="POST" class="inline" onsubmit="return confirm('Yakin ingin membatalkan laporan ini? Status aset terkait akan dikembalikan.');" style="display:inline;">
+                                            {{-- <form action="{{ route('incidents.destroy', $incident->id) }}" method="POST" class="inline" onsubmit="return confirm('Yakin ingin membatalkan laporan ini? Status aset terkait akan dikembalikan.');" style="display:inline;">
                                                 @csrf
                                                 @method('DELETE')
+                                                <button type="submit" class="text-red-600 hover:text-red-900">Batalkan</button>
+                                            </form> --}}
+
+                                            <form action="{{ route('incidents.cancel', $incident->id) }}" method="POST" class="inline" onsubmit="return confirm('Yakin ingin membatalkan laporan ini? Status aset terkait akan disinkronkan.');" style="display:inline;">
+                                                @csrf
+                                                @method('PUT')
                                                 <button type="submit" class="text-red-600 hover:text-red-900">Batalkan</button>
                                             </form>
                                         @else

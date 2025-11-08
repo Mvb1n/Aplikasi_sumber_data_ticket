@@ -27,6 +27,7 @@ Route::middleware('auth')->group(function () {
     // Rute untuk form kita
     Route::resource('assets', AssetController::class);
     Route::resource('incidents', IncidentController::class);
+    Route::put('/incidents/{incident}/cancel', [IncidentController::class, 'cancel'])->name('incidents.cancel');
 
     // Route::get('/my-incidents', [IncidentController::class, 'index'])->name('incidents.index');
     // Route::delete('/incidents/{incident}', [IncidentController::class, 'cancelIncident'])->name('incidents.cancel');

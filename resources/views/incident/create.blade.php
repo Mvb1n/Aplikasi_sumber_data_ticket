@@ -16,7 +16,6 @@
             <div class="bg-white p-8 rounded-lg shadow-md">
                 <form action="{{ route('incidents.store') }}" method="POST" enctype="multipart/form-data">
                     @csrf
-
                     @if ($errors->any())
                         <div class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md">
                             <strong>Whoops! Ada yang salah dengan input Anda:</strong>
@@ -59,67 +58,12 @@
                             <textarea name="chronology" id="chronology" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">{{ old('chronology', $incident->chronology ?? '') }}</textarea>
                         </div>
 
-                        <div
-                            x-data="{
-                                isDragging: false,
-                                fileList: []
-                            }"
-                            class="w-full"
-                        >
-                            <x-input-label for="attachments" :value="__('Foto/File Pendukung (Bisa lebih dari satu)')" />
-                            
-                            <label 
-                                for="attachments"
-                                class="relative mt-1 flex flex-col justify-center items-center w-full h-48 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 transition-colors duration-200 ease-in-out hover:border-gray-400"
-                                :class="{ 'border-indigo-600 bg-indigo-50': isDragging }"
-                                @dragover.prevent="isDragging = true"
-                                @dragleave.prevent="isDragging = false"
-                                @drop.prevent="
-                                    isDragging = false;
-                                    $refs.fileInput.files = $event.dataTransfer.files;
-                                    $refs.fileInput.dispatchEvent(new Event('change'));
-                                "
-                            >
-                                <div class="text-center space-y-2 pointer-events-none">
-                                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-                                    </svg>
-                                    <div class="flex text-sm text-gray-600">
-                                        <span class="relative font-medium text-indigo-600 hover:text-indigo-500">Upload file</span>
-                                        <p class="pl-1">atau drag and drop</p>
-                                    </div>
-                                    <p class="text-xs text-gray-500">PNG, JPG, PDF, dll (Maks 5MB)</p>
-                                </div>
-                            </label>
-
-                            <input 
-                                type="file" 
-                                name="attachments[]" 
-                                id="attachments" 
-                                multiple 
-                                class="hidden"
-                                x-ref="fileInput"
-                                @change="
-                                    let files = Array.from($event.target.files);
-                                    fileList = files.map(file => file.name);
-                                "
-                            />
-
-                            <div x-show="fileList.length > 0" class="mt-3 space-y-1" x-cloak>
-                                <p class="font-medium text-sm text-gray-700">File yang dipilih:</p>
-                                
-                                <ul class="list-disc list-inside text-sm text-gray-600">
-                                    <template x-for="fileName in fileList" :key="fileName">
-                                        <li x-text="fileName" class="truncate"></li>
-                                    </template>
-                                </ul>
-                            </div>
-                            @error('attachments')
-                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
-                            @error('attachments.*') 
-                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
+                        {{-- BLOK BARU UNTUK "FILE UMUM" --}}
+                        <div>
+                            <x-input-label for="incident_files" :value="__('File Pendukung Umum (Tidak terkait aset)')" />
+                            <input id="incident_files" name="incident_files[]" type="file" multiple
+                                class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-l-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                            <x-input-error :messages="$errors->get('incident_files.*')" class="mt-2" />
                         </div>
 
                         <!-- Div untuk daftar aset dinamis -->
@@ -154,41 +98,83 @@
             // Ambil nomor seri yang sudah ada dari input tersembunyi
             const currentAssetSNs = hiddenInput.value ? hiddenInput.value.split(',').map(sn => sn.trim()) : [];
 
-            function fetchAssets(locationCode) {
-                assetListDiv.innerHTML = '<p class="text-sm text-gray-500">Memuat aset...</p>';
+            // GANTI FUNGSI fetchAssets LAMA ANDA DENGAN INI
 
-                const selectedOption = Array.from(siteSelect.options).find(opt => opt.value === locationCode);
-                if (!selectedOption) {
-                    assetListDiv.innerHTML = '<p class="text-sm text-gray-500">Pilih site yang valid.</p>';
-                    return;
-                }
-                const siteId = selectedOption.dataset.siteId;
+// GANTI FUNGSI LAMA DENGAN FUNGSI BARU INI
 
-                const apiUrl = `http://ticket.test:80/api/v1/sites/${siteId}/assets`;
-                const apiToken = '1|IQr8L4j8OcmlKhtjGu5bQePz6sOGV8dnuR2Vm0og84164778';
+function fetchAssets(locationCode) {
+    assetListDiv.innerHTML = '<p class="text-sm text-gray-500">Memuat aset...</p>';
 
-                fetch(apiUrl, {
-                    headers: { 'Authorization': `Bearer ${apiToken}`, 'Accept': 'application/json' }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    assetListDiv.innerHTML = '';
-                    if (data.length > 0) {
-                        data.forEach(asset => {
-                            const isChecked = currentAssetSNs.includes(asset.serial_number) ? 'checked' : '';
-                            const label = document.createElement('label');
-                            label.className = 'flex items-center space-x-3';
-                            label.innerHTML = `
-                                <input type="checkbox" name="involved_asset_sn[]" value="${asset.serial_number}" ${isChecked} class="rounded border-gray-300">
-                                <span class="text-sm text-gray-700">${asset.name} (SN: ${asset.serial_number})</span>
-                            `;
-                            assetListDiv.appendChild(label);
-                        });
-                    } else {
-                        assetListDiv.innerHTML = '<p class="text-sm text-gray-500">Tidak ada aset tersedia di site ini.</p>';
-                    }
-                });
-            }
+    const selectedOption = Array.from(siteSelect.options).find(opt => opt.value === locationCode);
+    if (!selectedOption) {
+        assetListDiv.innerHTML = '<p class="text-sm text-gray-500">Pilih site yang valid.</p>';
+        return;
+    }
+    const siteId = selectedOption.dataset.siteId;
+
+    const apiUrl = `http://ticket.test:80/api/v1/sites/${siteId}/assets`;
+    const apiToken = '1|IQr8L4j8OcmlKhtjGu5bQePz6sOGV8dnuR2Vm0og84164778';
+
+    fetch(apiUrl, {
+        headers: { 'Authorization': `Bearer ${apiToken}`, 'Accept': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        assetListDiv.innerHTML = '';
+        if (data.length > 0) {
+            data.forEach(asset => {
+                
+                // --- MODIFIKASI DIMULAI DI SINI ---
+                
+                // Cek apakah aset ini harus dicentang saat load (karena old data)
+                const isInitiallyChecked = currentAssetSNs.includes(asset.serial_number);
+                const isChecked = isInitiallyChecked ? 'checked' : '';
+
+                // Buat div wrapper dengan Alpine.js
+                const assetWrapper = document.createElement('div');
+                // PERBAIKAN: Set state 'showUpload' berdasarkan isInitiallyChecked
+                assetWrapper.setAttribute('x-data', `{ showUpload: ${isInitiallyChecked ? 'true' : 'false'} }`); 
+                assetWrapper.className = 'py-2 border-b border-gray-200 last:border-b-0';
+
+                // Buat label dan checkbox
+                const label = document.createElement('label');
+                label.className = 'flex items-center space-x-3 cursor-pointer';
+                label.innerHTML = `
+                    <input type="checkbox" 
+                           name="involved_asset_sn[]" 
+                           value="${asset.serial_number}" 
+                           ${isChecked} 
+                           @change="showUpload = !showUpload"
+                           class="rounded border-gray-300">
+                    <span class="text-sm text-gray-700">${asset.name} (SN: ${asset.serial_number})</span>
+                `;
+                
+                // Buat div untuk form upload file (tersembunyi)
+                const uploadDiv = document.createElement('div');
+                uploadDiv.setAttribute('x-show', 'showUpload');
+                uploadDiv.setAttribute('x-cloak', '');
+                uploadDiv.className = 'mt-2 ml-7 pl-3 border-l-2 border-indigo-200';
+                
+                uploadDiv.innerHTML = `
+                    <label class="text-xs font-medium text-gray-600">Upload file untuk aset ini:</label>
+                    <input type="file" 
+                           name="asset_files[${asset.serial_number}][]" 
+                           multiple 
+                           class="block w-full text-xs text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none file:mr-2 file:py-1 file:px-2 file:rounded-l-lg file:border-0 file:text-xs file:font-semibold">
+                `;
+
+                // Gabungkan semuanya
+                assetWrapper.appendChild(label);
+                assetWrapper.appendChild(uploadDiv);
+                assetListDiv.appendChild(assetWrapper);
+
+                // --- MODIFIKASI SELESAI ---
+            });
+        } else {
+            assetListDiv.innerHTML = '<p class="text-sm text-gray-500">Tidak ada aset tersedia di site ini.</p>';
+        }
+    });
+}
 
             if (siteSelect.value) {
                 fetchAssets(siteSelect.value);

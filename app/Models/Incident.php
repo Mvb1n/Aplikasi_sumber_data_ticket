@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class Incident extends Model
 {
     use HasFactory;
-    protected $fillable = ['uuid', 'title', 'reporter_email', 'site_location_code', 'specific_location', 'chronology', 'involved_asset_sn', 'attachment_paths',];
+    protected $fillable = ['uuid', 'title', 'reporter_email', 'site_location_code', 'specific_location', 'chronology', 'involved_asset_sn', 'attachment_paths', 'status'];
 
     protected $dispatchesEvents = [
         'created' => IncidentReported::class, // atau IncidentCreated
